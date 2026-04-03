@@ -1,6 +1,10 @@
 const { Pool } = require('pg');
 
 const hasConnectionString = Boolean(process.env.DATABASE_URL);
+const connectionString = process.env.DATABASE_URL;
+const isProduction = process.env.NODE_ENV === 'production';
+const hasSslModeRequire = /sslmode=require/i.test(connectionString || '');
+const ssl = isProduction || hasSslModeRequire ? { rejectUnauthorized: false } : false;
 
 if (!hasConnectionString) {
   console.warn(
@@ -10,7 +14,8 @@ if (!hasConnectionString) {
 
 const pool = hasConnectionString
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
+      ssl,
     })
   : new Pool();
 

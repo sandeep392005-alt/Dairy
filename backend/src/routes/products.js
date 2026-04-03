@@ -27,7 +27,10 @@ router.get('/', async (req, res) => {
       });
     }
 
-    return res.status(500).json({ error: 'Failed to fetch products.' });
+    return res.status(500).json({
+      error: 'Failed to fetch products.',
+      code: error.code || 'UNKNOWN',
+    });
   }
 });
 

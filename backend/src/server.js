@@ -39,6 +39,20 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+app.get('/api/health/db', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.status(200).json({ ok: true, db: 'connected' });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      db: 'disconnected',
+      code: error.code || 'UNKNOWN',
+      message: error.message || 'Database ping failed.',
+    });
+  }
+});
+
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin', verifyToken, isAdmin, adminRoutes);
