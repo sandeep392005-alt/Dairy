@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
 
     return res.status(200).json(rows);
   } catch (error) {
+    console.error('GET /api/products failed:', error.message);
     return res.status(500).json({ error: 'Failed to fetch products.' });
   }
 });
