@@ -7,9 +7,13 @@ const router = express.Router();
 // POST /api/auth/login - sync authenticated Supabase/Google user into customers table
 router.post('/login', verifyToken, async (req, res) => {
   const { email, fullName, googleId, provider } = req.authUser;
-  const authProvider = provider === 'local' ? 'local' : 'google';
+  const authProvider = provider === 'google' ? 'google' : 'local';
   const fallbackFullName = email ? email.split('@')[0] : 'Customer';
   const resolvedFullName = fullName || fallbackFullName;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Authenticated user email is required.' });
+  }
 
   let client;
   try {
@@ -33,7 +37,7 @@ router.post('/login', verifyToken, async (req, res) => {
          SET full_name = COALESCE($1, full_name),
              google_id = COALESCE($2, google_id),
              auth_provider = $3
-         WHERE id = $3
+         WHERE id = $4
          RETURNING id, full_name, email, google_id, auth_provider, phone_number, delivery_address`,
         [resolvedFullName || null, googleId || null, authProvider, existingCustomer.id]
       );
@@ -59,9 +63,28 @@ router.post('/login', verifyToken, async (req, res) => {
       await client.query('ROLLBACK');
     }
 
+    const dbErrorCode = error.code || 'UNKNOWN';
+
+    if (dbErrorCode === '42703') {
+      return res.status(500).json({
+        error: 'Failed to sync authenticated customer. Database schema is missing expected customer auth columns.',
+        details: error.message,
+        code: dbErrorCode,
+      });
+    }
+
+    if (dbErrorCode === '23502') {
+      return res.status(500).json({
+        error: 'Failed to sync authenticated customer. Database migration is incomplete for customers auth fields.',
+        details: error.message,
+        code: dbErrorCode,
+      });
+    }
+
     return res.status(500).json({
       error: 'Failed to sync authenticated customer.',
       details: error.message,
+      code: dbErrorCode,
     });
   } finally {
     if (client) {

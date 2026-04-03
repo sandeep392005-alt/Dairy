@@ -6,6 +6,8 @@ const router = express.Router();
 // GET /api/products - fetch all available products
 router.get('/', async (req, res) => {
   try {
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=600');
+
     const { rows } = await pool.query(
       `SELECT id, name, description, price, unit, in_stock, image_url
        FROM public.products

@@ -1,31 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import ProductCard from '../components/ProductCard';
 import CheckoutPanel from '../components/CheckoutPanel';
-import { getProducts } from '../lib/api';
 import { useCart } from '../components/providers/CartContext';
+import { useProducts } from '../hooks/useProducts';
 
 export default function HomePage() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: products = [], isLoading: loading, error } = useProducts();
   const { cartItems, addToCart, clearCart, totalItems } = useCart();
 
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const data = await getProducts();
-        setProducts(data);
-      } catch (apiError) {
-        setError(apiError.message || 'Failed to load products.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProducts();
-  }, []);
+  const errorMessage = error instanceof Error ? error.message : 'Failed to load products.';
 
   const handleAddToCart = (product, quantity) => {
     addToCart(product, quantity);
@@ -52,7 +36,7 @@ export default function HomePage() {
           {loading ? (
             <p className="text-stone-600">Loading products...</p>
           ) : error ? (
-            <p className="text-red-700">{error}</p>
+            <p className="text-red-700">{errorMessage}</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {products.map((product, index) => (
