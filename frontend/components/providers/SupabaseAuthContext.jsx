@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { syncAuthenticatedCustomer } from '../../lib/api';
 import { getSupabaseClient } from '../../lib/supabaseClient';
 
 const SupabaseAuthContext = createContext(null);
@@ -8,6 +9,18 @@ const SupabaseAuthContext = createContext(null);
 export function SupabaseAuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const lastSyncedTokenRef = useRef('');
+
+  const syncCustomerRecord = async (nextSession) => {
+    const accessToken = nextSession?.access_token;
+
+    if (!accessToken || lastSyncedTokenRef.current === accessToken) {
+      return;
+    }
+
+    await syncAuthenticatedCustomer(accessToken);
+    lastSyncedTokenRef.current = accessToken;
+  };
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -24,6 +37,11 @@ export function SupabaseAuthProvider({ children }) {
       if (mounted) {
         setSession(data.session ?? null);
         setLoading(false);
+        if (data.session) {
+          syncCustomerRecord(data.session).catch((error) => {
+            console.warn('Failed to sync customer record after session load.', error);
+          });
+        }
       }
     }
 
@@ -34,6 +52,12 @@ export function SupabaseAuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession ?? null);
       setLoading(false);
+
+      if (nextSession) {
+        syncCustomerRecord(nextSession).catch((error) => {
+          console.warn('Failed to sync customer record after auth state change.', error);
+        });
+      }
     });
 
     return () => {
@@ -60,6 +84,55 @@ export function SupabaseAuthProvider({ children }) {
     }
   };
 
+  const signInWithEmailPassword = async (email, password) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_* env vars.');
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.session) {
+      await syncCustomerRecord(data.session);
+    }
+
+    return data;
+  };
+
+  const signUpWithEmailPassword = async (email, password) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_* env vars.');
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: email.split('@')[0],
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.session) {
+      await syncCustomerRecord(data.session);
+    }
+
+    return data;
+  };
+
   const signOut = async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -78,6 +151,8 @@ export function SupabaseAuthProvider({ children }) {
       user: session?.user ?? null,
       loading,
       signInWithGoogle,
+      signInWithEmailPassword,
+      signUpWithEmailPassword,
       signOut,
     }),
     [session, loading]

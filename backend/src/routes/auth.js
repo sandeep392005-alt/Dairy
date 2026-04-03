@@ -4,9 +4,12 @@ const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
-// POST /api/auth/login - sync Google user into customers table
+// POST /api/auth/login - sync authenticated Supabase/Google user into customers table
 router.post('/login', verifyToken, async (req, res) => {
-  const { email, fullName, googleId } = req.authUser;
+  const { email, fullName, googleId, provider } = req.authUser;
+  const authProvider = provider === 'local' ? 'local' : 'google';
+  const fallbackFullName = email ? email.split('@')[0] : 'Customer';
+  const resolvedFullName = fullName || fallbackFullName;
 
   let client;
   try {
@@ -29,18 +32,18 @@ router.post('/login', verifyToken, async (req, res) => {
         `UPDATE customers
          SET full_name = COALESCE($1, full_name),
              google_id = COALESCE($2, google_id),
-             auth_provider = 'google'
+             auth_provider = $3
          WHERE id = $3
          RETURNING id, full_name, email, google_id, auth_provider, phone_number, delivery_address`,
-        [fullName || null, googleId, existingCustomer.id]
+        [resolvedFullName || null, googleId || null, authProvider, existingCustomer.id]
       );
       customer = updated.rows[0];
     } else {
       const inserted = await client.query(
         `INSERT INTO customers (full_name, email, google_id, auth_provider)
-         VALUES ($1, $2, $3, 'google')
+         VALUES ($1, $2, $3, $4)
          RETURNING id, full_name, email, google_id, auth_provider, phone_number, delivery_address`,
-        [fullName || 'Google User', email, googleId]
+        [resolvedFullName, email, googleId || null, authProvider]
       );
       customer = inserted.rows[0];
     }

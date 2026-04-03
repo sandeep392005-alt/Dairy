@@ -8,6 +8,8 @@ const productsRoutes = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
+const verifyToken = require('./middleware/verifyToken');
+const isAdmin = require('./middleware/isAdmin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,7 +27,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', verifyToken, isAdmin, adminRoutes);
 app.use('/api/auth', authRoutes);
 
 app.use((err, req, res, next) => {

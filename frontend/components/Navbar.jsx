@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from './providers/CartContext';
 import { useSupabaseAuth } from './providers/SupabaseAuthContext';
 
@@ -30,11 +30,48 @@ function HamburgerIcon() {
   );
 }
 
+function ProfileFallbackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7 text-white" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="8.5" r="3.2" />
+      <path d="M5.5 19c1.3-3 4-4.7 6.5-4.7S17.7 16 19 19" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function Navbar() {
   const { totalItems } = useCart();
-  const { user, loading, signInWithGoogle, signOut } = useSupabaseAuth();
+  const { user, signOut } = useSupabaseAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const profileDropdownRef = useRef(null);
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase() || '';
+  const userEmail = user?.email?.trim().toLowerCase() || '';
+  const isAdmin = Boolean(adminEmail && userEmail && userEmail === adminEmail);
+  const links = isAdmin
+    ? [...navLinks, { href: '/admin', label: 'Admin Dashboard' }]
+    : navLinks;
+
+  useEffect(() => {
+    function handleMouseDown(event) {
+      if (!profileDropdownRef.current?.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    }
+
+    if (isProfileOpen) {
+      document.addEventListener('mousedown', handleMouseDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [isProfileOpen]);
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [user?.id]);
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] ||
     user?.email?.split('@')[0] ||
@@ -54,7 +91,7 @@ export default function Navbar() {
         </Link>
 
         <ul className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
+          {links.map((link) => (
             <li key={link.href}>
               <Link href={link.href} className="text-sm font-semibold text-stone-700 transition hover:text-meadow">
                 {link.label}
@@ -74,27 +111,30 @@ export default function Navbar() {
           </Link>
 
           {!user ? (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => signInWithGoogle()}
+            <Link
+              href="/login"
               className="rounded-full bg-meadow px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
             >
-              {loading ? 'Loading...' : 'Login with Google'}
-            </button>
+              Login
+            </Link>
           ) : (
-            <div className="relative">
+            <div ref={profileDropdownRef} className="relative">
               <button
                 type="button"
                 onClick={() => setIsProfileOpen((prev) => !prev)}
                 className="flex items-center gap-2 rounded-full border border-sage/40 bg-white px-3 py-1.5"
               >
-                {user.user_metadata?.avatar_url ? (
+                {user.user_metadata?.avatar_url && !avatarLoadError ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.user_metadata.avatar_url} alt={firstName} className="h-7 w-7 rounded-full" />
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt={firstName}
+                    className="h-7 w-7 rounded-full object-cover"
+                    onError={() => setAvatarLoadError(true)}
+                  />
                 ) : (
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sage text-xs font-bold text-white">
-                    {firstName[0]}
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sage">
+                    <ProfileFallbackIcon />
                   </span>
                 )}
                 <span className="text-sm font-semibold text-stone-700">{firstName}</span>
@@ -102,6 +142,15 @@ export default function Navbar() {
 
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-40 rounded-xl border border-stone-200 bg-white p-2 shadow-lg">
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="mb-1 block rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-700 hover:bg-cream"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={signOut}
@@ -128,7 +177,7 @@ export default function Navbar() {
       {isMenuOpen && (
         <div className="border-t border-sage/30 bg-white/95 px-4 py-3 md:hidden">
           <ul className="space-y-2">
-            {navLinks.map((link) => (
+            {links.map((link) => (
               <li key={link.href}>
                 <Link href={link.href} onClick={() => setIsMenuOpen(false)} className="block rounded-lg px-3 py-2 font-medium text-stone-700 hover:bg-cream">
                   {link.label}
@@ -148,22 +197,63 @@ export default function Navbar() {
             </Link>
 
             {!user ? (
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => signInWithGoogle()}
+              <Link
+                href="/login"
                 className="rounded-full bg-meadow px-4 py-2 text-sm font-semibold text-white"
               >
-                {loading ? 'Loading...' : 'Login with Google'}
-              </button>
+                Login
+              </Link>
             ) : (
-              <button
-                type="button"
-                onClick={signOut}
-                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700"
-              >
-                Logout
-              </button>
+              <div ref={profileDropdownRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen((prev) => !prev)}
+                  className="flex items-center gap-2 rounded-full border border-sage/40 bg-white px-3 py-1.5"
+                >
+                  {user.user_metadata?.avatar_url && !avatarLoadError ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt={firstName}
+                      className="h-7 w-7 rounded-full object-cover"
+                      onError={() => setAvatarLoadError(true)}
+                    />
+                  ) : (
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sage">
+                      <ProfileFallbackIcon />
+                    </span>
+                  )}
+                  <span className="text-sm font-semibold text-stone-700">{firstName}</span>
+                </button>
+
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-stone-200 bg-white p-2 shadow-lg">
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          setIsMenuOpen(false);
+                        }}
+                        className="mb-1 block rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-700 hover:bg-cream"
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        signOut();
+                        setIsProfileOpen(false);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-700 hover:bg-cream"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

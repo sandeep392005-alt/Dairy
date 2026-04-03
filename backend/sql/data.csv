@@ -1,0 +1,6 @@
+name,description,price,unit,in_stock,image_url
+Milk,"100% pure, farm-fresh raw cow milk.",60.00,liter,true,https://placehold.co/400x400/eeeeee/333333?text=Fresh+Milk
+Butter,"Traditional hand-churned white butter.",400.00,kg,true,https://placehold.co/400x400/eeeeee/333333?text=White+Butter
+Buttermilk,"Refreshing and probiotic-rich natural buttermilk.",30.00,liter,true,https://placehold.co/400x400/eeeeee/333333?text=Buttermilk
+Curd,"Thick, creamy, and natural clay-pot set curd.",80.00,kg,true,https://placehold.co/400x400/eeeeee/333333?text=Natural+Curd
+Paneer,"Soft, fresh cottage cheese made from pure milk.",350.00,kg,true,https://placehold.co/400x400/eeeeee/333333?text=Fresh+Paneer
