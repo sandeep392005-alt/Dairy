@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 app.use(
