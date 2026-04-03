@@ -14,25 +14,9 @@ const isAdmin = require('./middleware/isAdmin');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS blocked for origin ${origin}`));
-    },
-    credentials: true,
+    origin: process.env.CLIENT_ORIGIN || '*',
   })
 );
 app.use(express.json());
